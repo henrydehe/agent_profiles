@@ -1,21 +1,20 @@
 # Repository to Profile Mapping
 # Maps each target repository to its assigned profile
+#
+# Template for new entries:
+# "your-org/your-repo":
+#   profile: "profile_name"  # Must match a file in profiles/ (without .md)
+#   agent_files:
+#     claude: "CLAUDE.md"
+#     codex: "agents.md"
+#     positron: "llms.txt"
+#   path: "."  # Where to place the files in the target repo
 
 repositories:
-  # Example entries - replace with actual repos and profiles
-  # "org/repo-name":
-  #   profile: "profile_name"
-  #   agent_files:
-  #     claude: "CLAUDE.md"
-  #     codex: "agents.md"  
-  #     positron: "llms.txt"
-  #   path: "."  # Where to place the files in the target repo
-  
-  # Template for new entries:
-  # "your-org/your-repo":
-  #   profile: "economic_models"  # Must match a file in profiles/ (without .md)
-  #   agent_files:
-  #     claude: "CLAUDE.md"
-  #     codex: "agents.md"
-  #     positron: "llms.txt"
-  #   path: "."
+  "henrydehe/scge_hcmc":
+    profile: "default_R"
+    agent_files:
+      claude: "CLAUDE.md"
+      codex: "agents.md"
+      positron: "llms.txt"
+    path: "."

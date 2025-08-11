@@ -1,0 +1,74 @@
+name: Sync Agent Profiles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'profiles/**'
+      - 'repo_mapping.yaml'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Read mapping and sync profiles
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Install yq for YAML parsing
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          
+          # Parse repo_mapping.yaml and sync each repository
+          yq eval '.repositories | keys | .[]' repo_mapping.yaml | while IFS= read -r repo; do
+            repo=$(echo "$repo" | tr -d '"')
+            echo "Processing repository: $repo"
+            
+            # Extract configuration for this repo
+            profile=$(yq eval ".repositories.\"$repo\".profile" repo_mapping.yaml | tr -d '"')
+            claude_file=$(yq eval ".repositories.\"$repo\".agent_files.claude" repo_mapping.yaml | tr -d '"')
+            codex_file=$(yq eval ".repositories.\"$repo\".agent_files.codex" repo_mapping.yaml | tr -d '"')
+            positron_file=$(yq eval ".repositories.\"$repo\".agent_files.positron" repo_mapping.yaml | tr -d '"')
+            
+            if [[ -n "$profile" && -f "profiles/$profile.md" ]]; then
+              echo "Syncing profile '$profile' to $repo"
+              
+              # Helper function to update a file
+              update_file() {
+                local file_path=$1
+                local agent_name=$2
+                
+                if [[ -n "$file_path" && "$file_path" != "null" ]]; then
+                  echo "Updating $file_path"
+                  
+                  # Get existing file SHA if it exists
+                  sha=$(gh api "repos/$repo/contents/$file_path" --jq '.sha' 2>/dev/null || echo "")
+                  
+                  # Prepare API call
+                  if [[ -n "$sha" ]]; then
+                    # Update existing file
+                    gh api "repos/$repo/contents/$file_path" \
+                      --method PUT \
+                      --field message="Update $agent_name profile: $profile" \
+                      --field content="$(base64 -w 0 profiles/$profile.md)" \
+                      --field sha="$sha" || echo "Failed to update $file_path"
+                  else
+                    # Create new file
+                    gh api "repos/$repo/contents/$file_path" \
+                      --method PUT \
+                      --field message="Add $agent_name profile: $profile" \
+                      --field content="$(base64 -w 0 profiles/$profile.md)" || echo "Failed to create $file_path"
+                  fi
+                fi
+              }
+              
+              # Update each agent file
+              update_file "$claude_file" "Claude"
+              update_file "$codex_file" "Codex" 
+              update_file "$positron_file" "Positron"
+            fi
+          done
